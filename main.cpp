@@ -1,10 +1,31 @@
 #include <pcap.h>
 #include <stdio.h>
+#include <netinet/in.h>
+
 #include "libnet-headers-sample.h"
 
 void usage() {
     printf("syntax: pcap-test <interface>\n");
     printf("sample: pcap-test wlan0\n");
+}
+
+
+void print_IP(const ipv4_hdr* ip) {
+    
+    uint32_t ip_addr = ntohl(ip->ip_src);
+    printf("SOURCE      IP: ");
+    for (int i = 3 ; i>= 0 ; i--){
+        printf("%d.", (ip_addr >> i*8) & 0xFF); 
+    }
+    printf("\n");
+
+    ip_addr = ntohl(ip->ip_dst);
+    printf("DESTINATION IP: ");
+    for (int i = 3 ; i>= 0 ; i--){
+        printf("%d.", (ip_addr >> i*8) & 0xFF); 
+    }
+    printf("\n");    
+    
 }
 
 int main(int argc, char* argv[]) {
@@ -28,6 +49,7 @@ int main(int argc, char* argv[]) {
         const ethernet_hdr* ethernet;
         const ipv4_hdr*     ip;
         const tcp_hdr*      tcp;
+        char          payload[16] ={0, };
 
         // header에는 이름이 들어감, 시간도
         // 패킷의 정보에는 시각 정보도 있고, 몇바이트 잡혔는지도 나와있음 -> 버퍼의 시작 위치
@@ -43,21 +65,38 @@ int main(int argc, char* argv[]) {
             printf("pcap_next_ex return %d(%s)\n", res, pcap_geterr(handle));
             break;
         }
-        // 여기부터 내 코드를 집어넣으면 된다
+        
         printf("\n%u bytes captured\n", header->caplen);
         
-        printf("\nETHERNET HEADER\n");
         ethernet = (ethernet_hdr *)(packet);
-        printf("SOURCE      MAC: %u\n", ethernet->ether_shost);
-        printf("Destination MAC: %u\n", ethernet->ether_dhost);
-
+        int eth_size = sizeof(ethernet);
         ip = (ipv4_hdr *)(packet + 14);
+        int ip_size = sizeof(ip);
+        tcp = (tcp_hdr *)(packet + 34);
+        int tcp_size = sizeof(tcp);
+        // char payload[16] = (char *)(packet + eth_size + ip_size +tcp_size);
+        
+
+        if (ip->ip_p != 6){
+            printf("This packet isn't TCP\n");
+            continue;
+        }
+
+        printf("\nETHERNET HEADER\n");
+        printf("SOURCE      MAC: %lld\n", ethernet->ether_shost);
+        printf("Destination MAC: %lld\n", ethernet->ether_dhost);
+
+        // int size_ip = IP_HL(ip)*4;
         printf("\nIP HEADER\n");
-        printf("SOURCE      IP: %u\n", ip->ip_src);
-        printf("DESTINATION IP: %u\n", ip->ip_dst);
+        print_IP(ip);
 
 
+        printf("\nTCP HEADER\n");
+        printf("SOURCE      PORT: %d\n", tcp->th_sport);
+        printf("DESTINATION PORT: %d\n", tcp->th_dport);
 
+        printf("\nPAYLOAD\n");
+        printf("%s\n", payload); 
     }
 
     pcap_close(handle);
