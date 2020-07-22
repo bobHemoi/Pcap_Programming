@@ -13,10 +13,10 @@ typedef struct libnet_tcp_hdr         tcp_hdr;
 
 /* Internet address.  */
 typedef uint32_t in_addr_t;
-struct in_addr
-  {
-    in_addr_t s_addr;
-  };
+// struct in_addr
+//   {
+//     in_addr_t s_addr;
+//   };
 
 
 /*
@@ -76,7 +76,8 @@ struct libnet_ipv4_hdr
     u_int8_t ip_ttl;          /* time to live */
     u_int8_t ip_p;            /* protocol */
     u_int16_t ip_sum;         /* checksum */
-    struct in_addr ip_src, ip_dst; /* source and dest address */
+    // struct in_addr ip_src, ip_dst; /* source and dest address */
+    u_int32_t ip_src, ip_dst;
 };
 
 /*
