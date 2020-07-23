@@ -4,6 +4,11 @@
 
 #include "libnet-headers-sample.h"
 
+#define ETHERNET_LENGTH 14
+#define IP_LENGTH       20
+#define TCP_LENGTH      20
+#define TCP_CHECK       6
+
 void usage() {
     printf("syntax: pcap-test <interface>\n");
     printf("sample: pcap-test wlan0\n");
@@ -11,7 +16,8 @@ void usage() {
 
 
 void print_IP(const ipv4_hdr* ip) {
-    
+    printf("\nIP HEADER\n");
+
     uint32_t ip_addr = ntohl(ip->ip_src);
     printf("SOURCE      IP: ");
     for (int i = 3 ; i>= 0 ; i--){
@@ -26,6 +32,41 @@ void print_IP(const ipv4_hdr* ip) {
     }
     printf("\n");    
     
+}
+
+void print_ethernet(const ethernet_hdr* eth) {
+    printf("\nETHERNET HEADER\n");
+
+    printf("SOURCE      MAC:");
+    for (int i = 0 ; i<= 5 ; i++){
+        printf("%x:", eth->ether_shost[i]);
+    }
+    printf("\n");
+
+    printf("Destination MAC:");
+    for (int i = 0 ; i<= 5 ; i++){
+        printf("%x:", eth->ether_shost[i]);
+    }
+    printf("\n");
+
+}
+
+void print_TCP(const tcp_hdr* tcp){
+    printf("\nTCP HEADER\n");
+    uint16_t sport = ntohs(tcp->th_sport);
+    uint16_t dport = ntohs(tcp->th_dport);
+    printf("SOURCE      PORT: %d\n", sport);
+    printf("DESTINATION PORT: %d\n", dport);
+}
+
+void print_Payload(const u_char* payload, const ipv4_hdr* ip){
+        printf("\nPAYLOAD\n");
+        int len_payload = ntohs(ip->ip_len) - IP_LENGTH - TCP_LENGTH;
+        len_payload = 16 < len_payload ? 16 : len_payload;
+        for (int i=0;i< len_payload;i++){
+            printf("%02x ", payload[i]);
+        }
+        printf("\n"); 
 }
 
 int main(int argc, char* argv[]) {
@@ -49,7 +90,9 @@ int main(int argc, char* argv[]) {
         const ethernet_hdr* ethernet;
         const ipv4_hdr*     ip;
         const tcp_hdr*      tcp;
-        char          payload[16] ={0, };
+        u_char*          payload;
+
+        payload[16] ={0, };
 
         // header에는 이름이 들어감, 시간도
         // 패킷의 정보에는 시각 정보도 있고, 몇바이트 잡혔는지도 나와있음 -> 버퍼의 시작 위치
@@ -69,34 +112,26 @@ int main(int argc, char* argv[]) {
         printf("\n%u bytes captured\n", header->caplen);
         
         ethernet = (ethernet_hdr *)(packet);
-        int eth_size = sizeof(ethernet);
-        ip = (ipv4_hdr *)(packet + 14);
-        int ip_size = sizeof(ip);
-        tcp = (tcp_hdr *)(packet + 34);
-        int tcp_size = sizeof(tcp);
-        // char payload[16] = (char *)(packet + eth_size + ip_size +tcp_size);
         
-
-        if (ip->ip_p != 6){
+        ip = (ipv4_hdr *)(packet + ETHERNET_LENGTH);
+        uint16_t ip_size = ip->ip_len;
+        if (ip->ip_p != TCP_CHECK){
             printf("This packet isn't TCP\n");
             continue;
         }
 
-        printf("\nETHERNET HEADER\n");
-        printf("SOURCE      MAC: %lld\n", ethernet->ether_shost);
-        printf("Destination MAC: %lld\n", ethernet->ether_dhost);
+        tcp = (tcp_hdr *)(packet + ETHERNET_LENGTH + IP_LENGTH);
+        int tcp_size = sizeof(tcp);
 
-        // int size_ip = IP_HL(ip)*4;
-        printf("\nIP HEADER\n");
+        payload = (u_char *)(packet + ETHERNET_LENGTH + IP_LENGTH + TCP_LENGTH);
+        
+
+
+
+        print_ethernet(ethernet);
         print_IP(ip);
-
-
-        printf("\nTCP HEADER\n");
-        printf("SOURCE      PORT: %d\n", tcp->th_sport);
-        printf("DESTINATION PORT: %d\n", tcp->th_dport);
-
-        printf("\nPAYLOAD\n");
-        printf("%s\n", payload); 
+        print_TCP(tcp);
+        print_Payload(payload, ip);
     }
 
     pcap_close(handle);
