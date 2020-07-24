@@ -39,13 +39,13 @@ void print_ethernet(const ethernet_hdr* eth) {
 
     printf("SOURCE      MAC:");
     for (int i = 0 ; i<= 5 ; i++){
-        printf("%x:", eth->ether_shost[i]);
+        printf("%02x:", eth->ether_shost[i]);
     }
     printf("\n");
 
     printf("Destination MAC:");
     for (int i = 0 ; i<= 5 ; i++){
-        printf("%x:", eth->ether_shost[i]);
+        printf("%02x:", eth->ether_dhost[i]);
     }
     printf("\n");
 
@@ -53,17 +53,19 @@ void print_ethernet(const ethernet_hdr* eth) {
 
 void print_TCP(const tcp_hdr* tcp){
     printf("\nTCP HEADER\n");
+
     uint16_t sport = ntohs(tcp->th_sport);
     uint16_t dport = ntohs(tcp->th_dport);
     printf("SOURCE      PORT: %d\n", sport);
     printf("DESTINATION PORT: %d\n", dport);
 }
 
-void print_Payload(const u_char* payload, const ipv4_hdr* ip){
+void print_Payload(const u_char* payload, uint32_t packet_len){
         printf("\nPAYLOAD\n");
-        int len_payload = ntohs(ip->ip_len) - IP_LENGTH - TCP_LENGTH;
-        len_payload = 16 < len_payload ? 16 : len_payload;
-        for (int i=0;i< len_payload;i++){
+
+        int payload_len = packet_len - ETHERNET_LENGTH - IP_LENGTH - TCP_LENGTH;
+        payload_len = 16 < payload_len ? 16 : payload_len;
+        for (int i=0;i< payload_len;i++){
             printf("%02x ", payload[i]);
         }
         printf("\n"); 
@@ -94,14 +96,7 @@ int main(int argc, char* argv[]) {
 
         payload[16] ={0, };
 
-        // header에는 이름이 들어감, 시간도
-        // 패킷의 정보에는 시각 정보도 있고, 몇바이트 잡혔는지도 나와있음 -> 버퍼의 시작 위치
-        // wireshark -> ethernet -> destination
-        // 실제로 잡힌 헤더는 이더넷 헤더부터임 click -> ethernet header 맨앞에있는 것은 destination
-        // IP header에는 버전이 있고 길이가 있고 (45)
-        // 위치를 알아내서 source, Destination도 확인하세요
-        // protocol field도 확인하세요, TCP 헤더 위치는 Ip헤더의 위치를 확인하면 됨
-        // TCP 데이터 시작 위치 부터 16바이트 까지 출력을 해주면 된다
+ 
         int res = pcap_next_ex(handle, &header, &packet);
         if (res == 0) continue;
         if (res == -1 || res == -2) {
@@ -125,13 +120,10 @@ int main(int argc, char* argv[]) {
 
         payload = (u_char *)(packet + ETHERNET_LENGTH + IP_LENGTH + TCP_LENGTH);
         
-
-
-
         print_ethernet(ethernet);
         print_IP(ip);
         print_TCP(tcp);
-        print_Payload(payload, ip);
+        print_Payload(payload, header->caplen);
     }
 
     pcap_close(handle);
