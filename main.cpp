@@ -109,14 +109,12 @@ int main(int argc, char* argv[]) {
         ethernet = (ethernet_hdr *)(packet);
         
         ip = (ipv4_hdr *)(packet + ETHERNET_LENGTH);
-        uint16_t ip_size = ip->ip_len;
         if (ip->ip_p != TCP_CHECK){
             printf("This packet isn't TCP\n");
             continue;
         }
 
         tcp = (tcp_hdr *)(packet + ETHERNET_LENGTH + IP_LENGTH);
-        int tcp_size = sizeof(tcp);
 
         payload = (u_char *)(packet + ETHERNET_LENGTH + IP_LENGTH + TCP_LENGTH);
         
